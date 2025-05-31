@@ -10,6 +10,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client, estypes, ClientOptions } from "@elastic/elasticsearch";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import fs from "fs";
+import pkg from "ioredis";
+const Redis = pkg.default || pkg;
+const redis = new Redis();
+
+// [DEBUG] Script startup
+console.error("[DEBUG] MCP Server script started");
 
 // Configuration schema with auth options
 const ConfigSchema = z
@@ -47,17 +53,14 @@ const ConfigSchema = z
       if (data.username) {
         return !!data.password;
       }
-
       // If password is provided, username must be provided
       if (data.password) {
         return !!data.username;
       }
-
       // If apiKey is provided, it's valid
       if (data.apiKey) {
         return true;
       }
-
       // No auth is also valid (for local development)
       return true;
     },
@@ -73,6 +76,8 @@ type ElasticsearchConfig = z.infer<typeof ConfigSchema>;
 export async function createElasticsearchMcpServer(
   config: ElasticsearchConfig
 ) {
+  // [DEBUG] Entered createElasticsearchMcpServer
+  console.error("[DEBUG] createElasticsearchMcpServer() called");
   const validatedConfig = ConfigSchema.parse(config);
   const { url, apiKey, username, password, caCert } = validatedConfig;
 
@@ -92,6 +97,7 @@ export async function createElasticsearchMcpServer(
     try {
       const ca = fs.readFileSync(caCert);
       clientOptions.tls = { ca };
+      console.error("[DEBUG] Loaded CA certificate for TLS");
     } catch (error) {
       console.error(
         `Failed to read certificate file: ${
@@ -108,6 +114,9 @@ export async function createElasticsearchMcpServer(
     version: "0.1.1",
   });
 
+  // [DEBUG] Registering tools
+  console.error("[DEBUG] Registering tools: list_indices, get_mappings, search, get_shards");
+
   // Tool 1: List indices
   server.tool(
     "list_indices",
@@ -119,11 +128,12 @@ export async function createElasticsearchMcpServer(
         .min(1, "Index pattern is required")
         .describe("Index pattern of Elasticsearch indices to list"),
     },
-    async ( {indexPattern} ) => {
+    async ({ indexPattern }) => {
+      console.error("[DEBUG] list_indices tool called", indexPattern);
       try {
-        const response = await esClient.cat.indices({ 
-          index: indexPattern, 
-          format: "json" 
+        const response = await esClient.cat.indices({
+          index: indexPattern,
+          format: "json"
         });
 
         const indicesInfo = response.map((index) => ({
@@ -177,6 +187,7 @@ export async function createElasticsearchMcpServer(
         .describe("Name of the Elasticsearch index to get mappings for"),
     },
     async ({ index }) => {
+      console.error("[DEBUG] get_mappings tool called", index);
       try {
         const mappingResponse = await esClient.indices.getMapping({
           index,
@@ -247,9 +258,52 @@ export async function createElasticsearchMcpServer(
         .describe(
           "Complete Elasticsearch query DSL object that can include query, size, from, sort, etc."
         ),
+
+      userId: z.string().min(1).describe("User ID for permission filtering"),
     },
-    async ({ index, queryBody }) => {
+    async ({ index, queryBody, userId }) => {
+      console.error("[DEBUG] search tool called", index, userId, queryBody);
       try {
+
+        const redisKey = `GLOBAL_SEARCH_INDEX_ID_MAPPING:${userId}`;
+        const jsonString = await redis.get(redisKey);
+
+        console.error("[DEBUG] Redis key fetched:", redisKey, "->", jsonString);
+
+        const allowedIdsObj = jsonString
+          ? JSON.parse(jsonString)
+          : {
+            header_section_doc_ids: [],
+            line_item_section_doc_ids: [],
+            header_clause_doc_ids: [],
+            line_item_clause_doc_ids: [],
+            attachment_doc_ids: [],
+            meta_doc_ids: [],
+          };
+
+        const allowedIds = [
+          ...allowedIdsObj.header_section_doc_ids,
+          ...allowedIdsObj.line_item_section_doc_ids,
+          ...allowedIdsObj.header_clause_doc_ids,
+          ...allowedIdsObj.line_item_clause_doc_ids,
+          ...allowedIdsObj.attachment_doc_ids,
+          ...allowedIdsObj.meta_doc_ids,
+        ];
+
+        console.error("[DEBUG] Allowed IDs to filter on:", allowedIds);
+
+        if (!queryBody.query) queryBody.query = { bool: { must: [] } };
+        else if (!queryBody.query.bool) queryBody.query.bool = { must: [] };
+        else if (!queryBody.query.bool.must) queryBody.query.bool.must = [];
+
+        queryBody.query.bool.must.push({
+          terms: {
+            "AGREEMENT_ID.keyword": allowedIds.length > 0 ? allowedIds : ["__none__"],
+          },
+        });
+
+        console.error("[DEBUG] Final queryBody to send to ES:", JSON.stringify(queryBody, null, 2));
+
         // Get mappings to identify text fields for highlighting
         const mappingResponse = await esClient.indices.getMapping({
           index,
@@ -281,7 +335,13 @@ export async function createElasticsearchMcpServer(
           };
         }
 
+        // DEBUG: print the final searchRequest object
+        console.error("[DEBUG] ES SearchRequest:", JSON.stringify(searchRequest, null, 2));
+
         const result = await esClient.search(searchRequest);
+
+        // DEBUG: print raw ES response
+        console.error("[DEBUG] ES Search Response:", JSON.stringify(result, null, 2));
 
         // Extract the 'from' parameter from queryBody, defaulting to 0 if not provided
         const from = queryBody.from || 0;
@@ -318,7 +378,7 @@ export async function createElasticsearchMcpServer(
             typeof result.hits.total === "number"
               ? result.hits.total
               : result.hits.total?.value || 0
-          }, showing ${result.hits.hits.length} from position ${from}`,
+            }, showing ${result.hits.hits.length} from position ${from}`,
         };
 
         return {
@@ -355,6 +415,7 @@ export async function createElasticsearchMcpServer(
         .describe("Optional index name to get shard information for"),
     },
     async ({ index }) => {
+      console.error("[DEBUG] get_shards tool called", index);
       try {
         const response = await esClient.cat.shards({
           index,
@@ -408,6 +469,8 @@ export async function createElasticsearchMcpServer(
     }
   );
 
+  // [DEBUG] Returning MCP server instance
+  console.error("[DEBUG] Returning server from createElasticsearchMcpServer()");
   return server;
 }
 
@@ -420,11 +483,14 @@ const config: ElasticsearchConfig = {
 };
 
 async function main() {
+  console.error("[DEBUG] main() called");
   const transport = new StdioServerTransport();
   const server = await createElasticsearchMcpServer(config);
 
+  console.error("[DEBUG] Connecting server...");
   await server.connect(transport);
 
+  console.error("[DEBUG] Server connected and waiting for input...");
   process.on("SIGINT", async () => {
     await server.close();
     process.exit(0);
@@ -436,5 +502,6 @@ main().catch((error) => {
     "Server error:",
     error instanceof Error ? error.message : String(error)
   );
+  console.error("[DEBUG] Exiting due to error");
   process.exit(1);
 });

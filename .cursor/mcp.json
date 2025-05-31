@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "elasticsearch-mcp-server-local": {
+      "command": "node",
+      "args": [
+        "/Users/rishabgupta/mcp-server-elasticsearch/dist/index.js"
+      ],
+      "env": {
+        "ES_URL": "http://localhost:9200"
+      }
+    }
+  }
+}

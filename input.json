@@ -1,0 +1,1 @@
+{"tool":"search","args":{"index":"agreements","queryBody":{"size":10},"userId":"testuser"}}
