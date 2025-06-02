@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+//#!/usr/bin/env node
 
 /*
  * Copyright Elasticsearch B.V. and contributors
@@ -292,15 +292,49 @@ export async function createElasticsearchMcpServer(
 
         console.error("[DEBUG] Allowed IDs to filter on:", allowedIds);
 
-        if (!queryBody.query) queryBody.query = { bool: { must: [] } };
-        else if (!queryBody.query.bool) queryBody.query.bool = { must: [] };
-        else if (!queryBody.query.bool.must) queryBody.query.bool.must = [];
+        // if (!queryBody.query) queryBody.query = { bool: { must: [] } };
+        // else if (!queryBody.query.bool) queryBody.query.bool = { must: [] };
+        // else if (!queryBody.query.bool.must) queryBody.query.bool.must = [];
 
-        queryBody.query.bool.must.push({
-          terms: {
-            "AGREEMENT_ID.keyword": allowedIds.length > 0 ? allowedIds : ["__none__"],
-          },
-        });
+        // queryBody.query.bool.must.push({
+        //   terms: {
+        //     "AGREEMENT_ID.keyword": allowedIds.length > 0 ? allowedIds : ["__none__"],
+        //   },
+        // });
+
+        // Permission terms filter
+      const permissionFilter = {
+        terms: {
+          "AGREEMENT_ID.keyword": allowedIds.length > 0 ? allowedIds : ["__none__"],
+        },
+      };
+
+      // If no query, make a bool with only your filter
+      if (!queryBody.query) {
+        queryBody.query = {
+          bool: {
+            filter: [permissionFilter],
+          }
+        };
+      }
+      // If the query is already a bool, inject your filter
+      else if (queryBody.query.bool) {
+        if (!queryBody.query.bool.filter) {
+          queryBody.query.bool.filter = [];
+        }
+        queryBody.query.bool.filter.push(permissionFilter);
+      }
+      // If the query is any other type (e.g. term, match), wrap in bool
+      else {
+        // Store the original query
+        const originalQuery = queryBody.query;
+        queryBody.query = {
+          bool: {
+            must: [originalQuery],
+            filter: [permissionFilter],
+          }
+        };
+      }
 
         console.error("[DEBUG] Final queryBody to send to ES:", JSON.stringify(queryBody, null, 2));
 
