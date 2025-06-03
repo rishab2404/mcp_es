@@ -377,15 +377,144 @@ export async function createElasticsearchMcpServer(
         // DEBUG: print raw ES response
         console.error("[DEBUG] ES Search Response:", JSON.stringify(result, null, 2));
 
+        
         // Extract the 'from' parameter from queryBody, defaulting to 0 if not provided
         const from = queryBody.from || 0;
 
+        // const contentFragments = result.hits.hits.map((hit) => {
+        //   const highlightedFields = hit.highlight || {};
+        //   const sourceData = hit._source || {};
+
+        //   let content = "";
+
+        //   for (const [field, highlights] of Object.entries(highlightedFields)) {
+        //     if (highlights && highlights.length > 0) {
+        //       content += `${field} (highlighted): ${highlights.join(
+        //         " ... "
+        //       )}\n`;
+        //     }
+        //   }
+
+        //   for (const [field, value] of Object.entries(sourceData)) {
+        //     if (!(field in highlightedFields)) {
+        //       content += `${field}: ${JSON.stringify(value)}\n`;
+        //     }
+        //   }
+
+        //   return {
+        //     type: "text" as const,
+        //     text: content.trim(),
+        //   };
+        // });
+
+        // const metadataFragment = {
+        //   type: "text" as const,
+        //   text: `Total results: ${
+        //     typeof result.hits.total === "number"
+        //       ? result.hits.total
+        //       : result.hits.total?.value || 0
+        //     }, showing ${result.hits.hits.length} from position ${from}`,
+        // };
+
+        // return {
+        //   content: [metadataFragment, ...contentFragments],
+        // };
+
+        // ----- AGGREGATION UNIVERSAL HANDLER -----
+        function formatAggs(
+          aggsObj: Record<string, unknown>,
+          prefix = ""
+        ): string[] {
+          const lines: string[] = [];
+          for (const [aggName, aggData] of Object.entries(aggsObj)) {
+            if (aggData && typeof aggData === "object" && aggData !== null) {
+              // Buckets: must cast and check if 'buckets' is an array
+              const maybeBuckets = (aggData as Record<string, unknown>)["buckets"];
+              if (Array.isArray(maybeBuckets)) {
+                lines.push(`${prefix}Aggregation "${aggName}" (buckets):`);
+                if (maybeBuckets.length === 0) {
+                  lines.push(`${prefix}  (no buckets)`);
+                }
+                for (const bucket of maybeBuckets) {
+                  if (bucket && typeof bucket === "object" && bucket !== null) {
+                    const key = (bucket as Record<string, unknown>)["key"];
+                    const docCount = (bucket as Record<string, unknown>)["doc_count"];
+                    lines.push(
+                      `${prefix}  ${String(key)}: ${String(docCount)}`
+                    );
+                    // Recursively print nested aggs in buckets
+                    for (const [k, v] of Object.entries(bucket)) {
+                      if (
+                        v &&
+                        typeof v === "object" &&
+                        v !== null &&
+                        (Array.isArray((v as Record<string, unknown>)["buckets"]) ||
+                          (v as Record<string, unknown>)["value"] !== undefined)
+                      ) {
+                        lines.push(
+                          ...formatAggs({ [k]: v }, prefix + "    ")
+                        );
+                      }
+                    }
+                  }
+                }
+              } else if (
+                // Single metric: e.g., { value: 123 }
+                Object.prototype.hasOwnProperty.call(aggData, "value")
+              ) {
+                lines.push(
+                  `${prefix}Aggregation "${aggName}": ${
+                    (aggData as Record<string, unknown>)["value"]
+                  }`
+                );
+              } else if (
+                // Multi-metric: e.g., { count, min, max, avg, sum }
+                Object.keys(aggData).some((k) =>
+                  ["values", "avg", "sum", "min", "max", "count"].includes(k)
+                )
+              ) {
+                lines.push(
+                  `${prefix}Aggregation "${aggName}": ${JSON.stringify(
+                    aggData
+                  )}`
+                );
+              } else {
+                // Recursively process other nested aggs (if any)
+                for (const [k, v] of Object.entries(aggData)) {
+                  if (
+                    v &&
+                    typeof v === "object" &&
+                    v !== null &&
+                    (Array.isArray((v as Record<string, unknown>)["buckets"]) ||
+                      (v as Record<string, unknown>)["value"] !== undefined)
+                  ) {
+                    lines.push(...formatAggs({ [k]: v }, prefix + "  "));
+                  }
+                }
+              }
+            }
+          }
+          return lines;
+        }
+        
+
+        let aggregationFragments: { type: "text"; text: string }[] = [];
+        if (result.aggregations) {
+          const aggLines = formatAggs(result.aggregations as Record<string, unknown>);
+          if (aggLines.length > 0) {
+            aggregationFragments.push({
+              type: "text" as const,
+              text: aggLines.join("\n"),
+            });
+          }
+        }
+        
         const contentFragments = result.hits.hits.map((hit) => {
           const highlightedFields = hit.highlight || {};
           const sourceData = hit._source || {};
-
+        
           let content = "";
-
+        
           for (const [field, highlights] of Object.entries(highlightedFields)) {
             if (highlights && highlights.length > 0) {
               content += `${field} (highlighted): ${highlights.join(
@@ -393,19 +522,19 @@ export async function createElasticsearchMcpServer(
               )}\n`;
             }
           }
-
+        
           for (const [field, value] of Object.entries(sourceData)) {
             if (!(field in highlightedFields)) {
               content += `${field}: ${JSON.stringify(value)}\n`;
             }
           }
-
+        
           return {
             type: "text" as const,
             text: content.trim(),
           };
         });
-
+        
         const metadataFragment = {
           type: "text" as const,
           text: `Total results: ${
@@ -414,10 +543,12 @@ export async function createElasticsearchMcpServer(
               : result.hits.total?.value || 0
             }, showing ${result.hits.hits.length} from position ${from}`,
         };
-
+        
         return {
-          content: [metadataFragment, ...contentFragments],
+          content: [...aggregationFragments, metadataFragment, ...contentFragments],
         };
+        
+
       } catch (error) {
         console.error(
           `Search failed: ${
