@@ -10,9 +10,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client, estypes, ClientOptions } from "@elastic/elasticsearch";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import fs from "fs";
-import pkg from "ioredis";
-const Redis = pkg.default || pkg;
-const redis = new Redis();
+import redis from "./redisClient.js" ;  
+
+const REDIS_STREAM_KEY = process.env.REDIS_STREAM_KEY || "default_stream_key";
 
 // [DEBUG] Script startup
 console.error("[DEBUG] MCP Server script started");
@@ -303,11 +303,51 @@ export async function createElasticsearchMcpServer(
         // });
 
         // Permission terms filter
-      const permissionFilter = {
+      // const permissionFilter = {
+      //   terms: {
+      //     "AGREEMENT_ID.keyword": allowedIds.length > 0 ? allowedIds : ["__none__"],
+      //   },
+      // };
+
+    let permissionFilter;
+
+    if (index === "cdc_field_data_agreement" || index === "lineitems") {
+      // Fetch section permissions for the user
+      const sectionPermKey = `SECTION_PERMISSIONS:${userId}`;
+      const allowedSectionPairs: { agreement_id: string, section_id: string }[] =
+        JSON.parse(await redis.get(sectionPermKey) || "[]");
+
+      console.error("[DEBUG] Section permission pairs:", allowedSectionPairs);
+
+      if (allowedSectionPairs.length > 0) {
+        // Build filter: OR of (agreement_id AND section_id) pairs
+        permissionFilter = {
+          bool: {
+            should: allowedSectionPairs.map((pair) => ({
+              bool: {
+                must: [
+                  { term: { "AGREEMENT_ID.keyword": pair.agreement_id } },
+                  { term: { "SECTION_ID.keyword": pair.section_id } }
+                ]
+              }
+            }))
+          }
+        };
+      } else {
+        // No permissions, block all
+        permissionFilter = {
+          term: { "AGREEMENT_ID.keyword": "__none__" }
+        };
+      }
+    } else {
+      // Default (old) logic for agreement permissions only
+      permissionFilter = {
         terms: {
           "AGREEMENT_ID.keyword": allowedIds.length > 0 ? allowedIds : ["__none__"],
         },
       };
+    }
+
 
       // If no query, make a bool with only your filter
       if (!queryBody.query) {
