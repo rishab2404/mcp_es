@@ -265,21 +265,46 @@ export async function createElasticsearchMcpServer(
       console.error("[DEBUG] search tool called", index, userId, queryBody);
       try {
 
-        const redisKey = `GLOBAL_SEARCH_INDEX_ID_MAPPING:${userId}`;
-        const jsonString = await redis.get(redisKey);
+        // const redisKey = `GLOBAL_SEARCH_INDEX_ID_MAPPING:${userId}`;
+        // const jsonString = await redis.get(redisKey);
 
-        console.error("[DEBUG] Redis key fetched:", redisKey, "->", jsonString);
+        // console.error("[DEBUG] Redis key fetched:", redisKey, "->", jsonString);
 
-        const allowedIdsObj = jsonString
-          ? JSON.parse(jsonString)
-          : {
-            header_section_doc_ids: [],
-            line_item_section_doc_ids: [],
-            header_clause_doc_ids: [],
-            line_item_clause_doc_ids: [],
-            attachment_doc_ids: [],
-            meta_doc_ids: [],
-          };
+        const allowedIdsObj = {
+          header_section_doc_ids: [
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_3',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_4',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_5',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_6',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_7',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_8'
+          ],
+          line_item_section_doc_ids: [
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_3',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_4',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_5'
+          ],
+          header_clause_doc_ids: [
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2'
+          ],
+          line_item_clause_doc_ids: [
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2'
+          ],
+          attachment_doc_ids: [
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1'
+          ],
+          meta_doc_ids: [
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
+            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2'
+          ]
+        };
+        
 
         const allowedIds = [
           ...allowedIdsObj.header_section_doc_ids,
@@ -288,6 +313,7 @@ export async function createElasticsearchMcpServer(
           ...allowedIdsObj.line_item_clause_doc_ids,
           ...allowedIdsObj.attachment_doc_ids,
           ...allowedIdsObj.meta_doc_ids,
+          
         ];
 
         console.error("[DEBUG] Allowed IDs to filter on:", allowedIds);
@@ -411,6 +437,7 @@ export async function createElasticsearchMcpServer(
 
         // DEBUG: print the final searchRequest object
         console.error("[DEBUG] ES SearchRequest:", JSON.stringify(searchRequest, null, 2));
+
 
         const result = await esClient.search(searchRequest);
 

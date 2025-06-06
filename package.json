@@ -37,7 +37,7 @@
     "generate-notice": "node ./scripts/generate-notice.js"
   },
   "dependencies": {
-    "@elastic/elasticsearch": "^9.0.0",
+    "@elastic/elasticsearch": "^8.15.0",
     "@modelcontextprotocol/sdk": "1.11.2",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
