@@ -316,7 +316,7 @@ export async function createElasticsearchMcpServer(
           
         ];
 
-        console.error("[DEBUG] Allowed IDs to filter on:", allowedIds);
+        // console.error("[DEBUG] Allowed IDs to filter on:", allowedIds);
 
         // if (!queryBody.query) queryBody.query = { bool: { must: [] } };
         // else if (!queryBody.query.bool) queryBody.query.bool = { must: [] };
@@ -337,35 +337,115 @@ export async function createElasticsearchMcpServer(
 
     let permissionFilter;
 
-    if (index === "cdc_field_data_agreement" || index === "lineitems") {
-      // Fetch section permissions for the user
-      const sectionPermKey = `SECTION_PERMISSIONS:${userId}`;
-      const allowedSectionPairs: { agreement_id: string, section_id: string }[] =
-        JSON.parse(await redis.get(sectionPermKey) || "[]");
-
-      console.error("[DEBUG] Section permission pairs:", allowedSectionPairs);
-
-      if (allowedSectionPairs.length > 0) {
-        // Build filter: OR of (agreement_id AND section_id) pairs
-        permissionFilter = {
-          bool: {
-            should: allowedSectionPairs.map((pair) => ({
-              bool: {
-                must: [
-                  { term: { "AGREEMENT_ID.keyword": pair.agreement_id } },
-                  { term: { "SECTION_ID.keyword": pair.section_id } }
-                ]
+    if (index === "cdc_agreement_list") {
+      // For this index, permission index is "permitted_agreement_for_meta" and keys are meta_doc_ids
+      const allowedMetaDocIds = allowedIdsObj.meta_doc_ids;
+      permissionFilter = {
+        bool: {
+          should: allowedMetaDocIds.map(id => ({
+            terms: {
+              "AGREEMENT_ID.keyword": {
+                index: "permitted_agreement_for_meta",
+                id: id,
+                path: "agreement_ids"
               }
-            }))
-          }
-        };
-      } else {
-        // No permissions, block all
-        permissionFilter = {
-          term: { "AGREEMENT_ID.keyword": "__none__" }
-        };
-      }
-    } else {
+            }
+          }))
+        }
+      };
+    } else if (index === "cms_documents") {
+      // For this index, permission index is "permitted_agreement_for_attachment" and keys are attachment_doc_ids
+      const allowedAttachmentDocIds = allowedIdsObj.attachment_doc_ids;
+      permissionFilter = {
+        bool: {
+          should: allowedAttachmentDocIds.map(id => ({
+            terms: {
+              "AGREEMENT_ID.keyword": {
+                index: "permitted_agreement_for_attachment",
+                id: id,
+                path: "agreement_ids"
+              }
+            }
+          }))
+        }
+      };
+    } else if (index === "cdc_line_items") {
+      const sectionDocIds = allowedIdsObj.line_item_section_doc_ids; // Array of doc IDs
+      permissionFilter = {
+        bool: {
+          should: sectionDocIds.map(docId => ({
+            bool: {
+              must: [
+                {
+                  terms: {
+                    "AGREEMENT_ID.keyword": {
+                      index: "permitted_line_item_section",
+                      id: docId,
+                      path: "sections.agreement_id"
+                    }
+                  }
+                },
+                {
+                  terms: {
+                    "SECTION_ID.keyword": {
+                      index: "permitted_line_item_section",
+                      id: docId,
+                      path: "sections.section_id"
+                    }
+                  }
+                }
+              ]
+            }
+          }))
+        }
+      };
+    } else if (index === "cdc_field_data_agreement") {
+      // For each doc_id in header_section_doc_ids, create a must of terms
+      const sectionDocIds = allowedIdsObj.header_section_doc_ids; // array of doc IDs
+      permissionFilter = {
+        bool: {
+          should: sectionDocIds.map(docId => ({
+            bool: {
+              must: [
+                {
+                  terms: {
+                    "AGREEMENT_ID.keyword": {
+                      index: "permitted_header_section",
+                      id: docId,
+                      path: "sections.agreement_id"
+                    }
+                  }
+                },
+                {
+                  terms: {
+                    "SECTION_ID.keyword": {
+                      index: "permitted_header_section",
+                      id: docId,
+                      path: "sections.section_id"
+                    }
+                  }
+                }
+              ]
+            }
+          }))
+        }
+      };
+    } else if (index === "cdc_clauses_data") {
+      const clauseDocIds = allowedIdsObj.header_clause_doc_ids; 
+      permissionFilter = {
+        bool: {
+          should: clauseDocIds.map(docId => ({
+            terms: {
+              "AGREEMENT_ID.keyword": {
+                index: "permitted_agreement_for_clause",
+                id: docId,
+                path: "agreement_ids"
+              }
+            }
+          }))
+        }
+      };
+    }else {
       // Default (old) logic for agreement permissions only
       permissionFilter = {
         terms: {
