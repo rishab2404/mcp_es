@@ -1,0 +1,38 @@
+{
+    "size": 10,
+    "from": 0,
+    "query": {
+      "bool": {
+        "must": [
+          {
+            "match_all": {}
+          },
+          {
+            "bool": {
+              "should": [
+                {
+                  "terms": {
+                    "AGREEMENT_ID.keyword": {
+                      "index": "permitted_agreement_for_meta",
+                      "id": "eb8fd3be-2d64-4b53-b806-75fd120862f7_1",
+                      "path": "agreement_ids"
+                    }
+                  }
+                },
+                {
+                  "terms": {
+                    "AGREEMENT_ID.keyword": {
+                      "index": "permitted_agreement_for_meta",
+                      "id": "eb8fd3be-2d64-4b53-b806-75fd120862f7_2",
+                      "path": "agreement_ids"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+  

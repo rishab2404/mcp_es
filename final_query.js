@@ -58,17 +58,6 @@ async function main() {
     
     const redisKey = `GLOBAL_SEARCH_INDEX_ID_MAPPING:${userId}`;
     const jsonString = await redis.get(redisKey);
-  
-    // const allowedIdsObj = jsonString
-    //   ? JSON.parse(jsonString)
-    //   : {
-    //       header_section_doc_ids: [],
-    //       line_item_section_doc_ids: [],
-    //       header_clause_doc_ids: [],
-    //       line_item_clause_doc_ids: [],
-    //       attachment_doc_ids: [],
-    //       meta_doc_ids: [],
-    //     };
 
     const allowedIdsObj = {'header_section_doc_ids': ['eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
         'eb8fd3be-2d64-4b53-b806-75fd120862f7_2',

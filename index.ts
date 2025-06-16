@@ -271,37 +271,40 @@ export async function createElasticsearchMcpServer(
         // console.error("[DEBUG] Redis key fetched:", redisKey, "->", jsonString);
 
         const allowedIdsObj = {
-          header_section_doc_ids: [
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_3',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_4',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_5',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_6',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_7',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_8'
+          "header_section_doc_ids": [
+            "30fc609b-a797-4a67-b601-9e1a784be701_1",
+            "30fc609b-a797-4a67-b601-9e1a784be701_2",
+            "30fc609b-a797-4a67-b601-9e1a784be701_3",
+            "30fc609b-a797-4a67-b601-9e1a784be701_4",
+            "30fc609b-a797-4a67-b601-9e1a784be701_5",
+            "30fc609b-a797-4a67-b601-9e1a784be701_6",
+            "30fc609b-a797-4a67-b601-9e1a784be701_7",
+            "30fc609b-a797-4a67-b601-9e1a784be701_8",
+            "30fc609b-a797-4a67-b601-9e1a784be701_9",
+            "30fc609b-a797-4a67-b601-9e1a784be701_10"
           ],
-          line_item_section_doc_ids: [
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_3',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_4',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_5'
+          "line_item_section_doc_ids": [
+            "30fc609b-a797-4a67-b601-9e1a784be701_1",
+            "30fc609b-a797-4a67-b601-9e1a784be701_2",
+            "30fc609b-a797-4a67-b601-9e1a784be701_3",
+            "30fc609b-a797-4a67-b601-9e1a784be701_4",
+            "30fc609b-a797-4a67-b601-9e1a784be701_5"
           ],
-          header_clause_doc_ids: [
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2'
+          "header_clause_doc_ids": [
+            "30fc609b-a797-4a67-b601-9e1a784be701_1",
+            "30fc609b-a797-4a67-b601-9e1a784be701_2"
           ],
-          line_item_clause_doc_ids: [
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2'
+          "line_item_clause_doc_ids": [
+            "30fc609b-a797-4a67-b601-9e1a784be701_1",
+            "30fc609b-a797-4a67-b601-9e1a784be701_2"
           ],
-          attachment_doc_ids: [
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1'
+          "attachment_doc_ids": [
+            "30fc609b-a797-4a67-b601-9e1a784be701_1",
+            "30fc609b-a797-4a67-b601-9e1a784be701_2"
           ],
-          meta_doc_ids: [
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_1',
-            'eb8fd3be-2d64-4b53-b806-75fd120862f7_2'
+          "meta_doc_ids": [
+            "30fc609b-a797-4a67-b601-9e1a784be701_1",
+            "30fc609b-a797-4a67-b601-9e1a784be701_2"
           ]
         };
         
@@ -316,24 +319,7 @@ export async function createElasticsearchMcpServer(
           
         ];
 
-        // console.error("[DEBUG] Allowed IDs to filter on:", allowedIds);
-
-        // if (!queryBody.query) queryBody.query = { bool: { must: [] } };
-        // else if (!queryBody.query.bool) queryBody.query.bool = { must: [] };
-        // else if (!queryBody.query.bool.must) queryBody.query.bool.must = [];
-
-        // queryBody.query.bool.must.push({
-        //   terms: {
-        //     "AGREEMENT_ID.keyword": allowedIds.length > 0 ? allowedIds : ["__none__"],
-        //   },
-        // });
-
-        // Permission terms filter
-      // const permissionFilter = {
-      //   terms: {
-      //     "AGREEMENT_ID.keyword": allowedIds.length > 0 ? allowedIds : ["__none__"],
-      //   },
-      // };
+  
 
     let permissionFilter;
 
@@ -387,7 +373,7 @@ export async function createElasticsearchMcpServer(
                 },
                 {
                   terms: {
-                    "SECTION_ID.keyword": {
+                    "AGREEMENT_SECTION_ID.keyword": {
                       index: "permitted_line_item_section",
                       id: docId,
                       path: "sections.section_id"
@@ -399,7 +385,7 @@ export async function createElasticsearchMcpServer(
           }))
         }
       };
-    } else if (index === "cdc_field_data_agreement") {
+    } else if (index === "cdc_field_data_agreements") {
       // For each doc_id in header_section_doc_ids, create a must of terms
       const sectionDocIds = allowedIdsObj.header_section_doc_ids; // array of doc IDs
       permissionFilter = {
@@ -459,16 +445,16 @@ export async function createElasticsearchMcpServer(
       if (!queryBody.query) {
         queryBody.query = {
           bool: {
-            filter: [permissionFilter],
+            must: [permissionFilter],
           }
         };
       }
       // If the query is already a bool, inject your filter
       else if (queryBody.query.bool) {
-        if (!queryBody.query.bool.filter) {
-          queryBody.query.bool.filter = [];
+        if (!queryBody.query.bool.must) {
+          queryBody.query.bool.must = [];
         }
-        queryBody.query.bool.filter.push(permissionFilter);
+        queryBody.query.bool.must.push(permissionFilter);
       }
       // If the query is any other type (e.g. term, match), wrap in bool
       else {
@@ -476,8 +462,7 @@ export async function createElasticsearchMcpServer(
         const originalQuery = queryBody.query;
         queryBody.query = {
           bool: {
-            must: [originalQuery],
-            filter: [permissionFilter],
+            must: [originalQuery, permissionFilter]
           }
         };
       }
@@ -491,10 +476,13 @@ export async function createElasticsearchMcpServer(
 
         const indexMappings = mappingResponse[index]?.mappings || {};
 
-        const searchRequest: estypes.SearchRequest = {
-          index,
-          ...queryBody,
+        const searchRequest = {
+          index:index,
+          body:queryBody,
         };
+
+
+        //queryBody.index = index;
 
         // Always do highlighting
         if (indexMappings.properties) {
@@ -508,7 +496,7 @@ export async function createElasticsearchMcpServer(
             }
           }
 
-          searchRequest.highlight = {
+          searchRequest.body.highlight = {
             fields: textFields,
             pre_tags: ["<em>"],
             post_tags: ["</em>"],
@@ -516,56 +504,27 @@ export async function createElasticsearchMcpServer(
         }
 
         // DEBUG: print the final searchRequest object
-        console.error("[DEBUG] ES SearchRequest:", JSON.stringify(searchRequest, null, 2));
+       console.error("[DEBUG] ES SearchRequest:", JSON.stringify(searchRequest, null, 2));
 
-
-        const result = await esClient.search(searchRequest);
+       
+       const result = await esClient.search(searchRequest);
 
         // DEBUG: print raw ES response
-        console.error("[DEBUG] ES Search Response:", JSON.stringify(result, null, 2));
+      //  console.error("[DEBUG] ES Search Response:", JSON.stringify(result, null, 2));
+
+      //   return {
+      //     content: [
+      //       {
+      //         type: "text",
+      //         text: "[DEBUG] This is the final query that would be sent to ES:\n" + JSON.stringify(result, null, 2)
+      //       }
+      //     ]
+      //   };
+        
 
         
         // Extract the 'from' parameter from queryBody, defaulting to 0 if not provided
         const from = queryBody.from || 0;
-
-        // const contentFragments = result.hits.hits.map((hit) => {
-        //   const highlightedFields = hit.highlight || {};
-        //   const sourceData = hit._source || {};
-
-        //   let content = "";
-
-        //   for (const [field, highlights] of Object.entries(highlightedFields)) {
-        //     if (highlights && highlights.length > 0) {
-        //       content += `${field} (highlighted): ${highlights.join(
-        //         " ... "
-        //       )}\n`;
-        //     }
-        //   }
-
-        //   for (const [field, value] of Object.entries(sourceData)) {
-        //     if (!(field in highlightedFields)) {
-        //       content += `${field}: ${JSON.stringify(value)}\n`;
-        //     }
-        //   }
-
-        //   return {
-        //     type: "text" as const,
-        //     text: content.trim(),
-        //   };
-        // });
-
-        // const metadataFragment = {
-        //   type: "text" as const,
-        //   text: `Total results: ${
-        //     typeof result.hits.total === "number"
-        //       ? result.hits.total
-        //       : result.hits.total?.value || 0
-        //     }, showing ${result.hits.hits.length} from position ${from}`,
-        // };
-
-        // return {
-        //   content: [metadataFragment, ...contentFragments],
-        // };
 
         // ----- AGGREGATION UNIVERSAL HANDLER -----
         function formatAggs(

@@ -6,7 +6,7 @@
         "/Users/rishabgupta/mcp-server-elasticsearch/dist/index.js"
       ],
       "env": {
-        "ES_URL": "https://3863-2403-6200-8860-8a19-1a92-7ba8-b3ac-cec6.ngrok-free.app/",
+        "ES_URL": "https://72a4-2403-6200-8860-8a19-8576-ab8-ac48-85db.ngrok-free.app/",
         "ES_USERNAME": "elastic",
         "ES_PASSWORD": "P@ssw0rd_9#ZmE!"
       }

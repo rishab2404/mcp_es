@@ -17,3 +17,6 @@ const redis = REDIS_URL
     });
 
 export default redis;
+
+
+
