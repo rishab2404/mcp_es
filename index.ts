@@ -1,4 +1,4 @@
-//#!/usr/bin/env node
+#!/usr/bin/env node
 
 /*
  * Copyright Elasticsearch B.V. and contributors
@@ -11,8 +11,6 @@ import { Client, estypes, ClientOptions } from "@elastic/elasticsearch";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import fs from "fs";
 import redis from "./redisClient.js" ;  
-
-const REDIS_STREAM_KEY = process.env.REDIS_STREAM_KEY || "default_stream_key";
 
 // [DEBUG] Script startup
 console.error("[DEBUG] MCP Server script started");
@@ -265,48 +263,12 @@ export async function createElasticsearchMcpServer(
       console.error("[DEBUG] search tool called", index, userId, queryBody);
       try {
 
-        // const redisKey = `GLOBAL_SEARCH_INDEX_ID_MAPPING:${userId}`;
-        // const jsonString = await redis.get(redisKey);
+        const redisKey = `GLOBAL_SEARCH_INDEX_ID_MAPPING:${userId}`;
+        const raw= await redis.get(redisKey);
 
-        // console.error("[DEBUG] Redis key fetched:", redisKey, "->", jsonString);
+        console.error("[DEBUG] Redis key fetched:", redisKey, "->", raw);
 
-        const allowedIdsObj = {
-          "header_section_doc_ids": [
-            "30fc609b-a797-4a67-b601-9e1a784be701_1",
-            "30fc609b-a797-4a67-b601-9e1a784be701_2",
-            "30fc609b-a797-4a67-b601-9e1a784be701_3",
-            "30fc609b-a797-4a67-b601-9e1a784be701_4",
-            "30fc609b-a797-4a67-b601-9e1a784be701_5",
-            "30fc609b-a797-4a67-b601-9e1a784be701_6",
-            "30fc609b-a797-4a67-b601-9e1a784be701_7",
-            "30fc609b-a797-4a67-b601-9e1a784be701_8",
-            "30fc609b-a797-4a67-b601-9e1a784be701_9",
-            "30fc609b-a797-4a67-b601-9e1a784be701_10"
-          ],
-          "line_item_section_doc_ids": [
-            "30fc609b-a797-4a67-b601-9e1a784be701_1",
-            "30fc609b-a797-4a67-b601-9e1a784be701_2",
-            "30fc609b-a797-4a67-b601-9e1a784be701_3",
-            "30fc609b-a797-4a67-b601-9e1a784be701_4",
-            "30fc609b-a797-4a67-b601-9e1a784be701_5"
-          ],
-          "header_clause_doc_ids": [
-            "30fc609b-a797-4a67-b601-9e1a784be701_1",
-            "30fc609b-a797-4a67-b601-9e1a784be701_2"
-          ],
-          "line_item_clause_doc_ids": [
-            "30fc609b-a797-4a67-b601-9e1a784be701_1",
-            "30fc609b-a797-4a67-b601-9e1a784be701_2"
-          ],
-          "attachment_doc_ids": [
-            "30fc609b-a797-4a67-b601-9e1a784be701_1",
-            "30fc609b-a797-4a67-b601-9e1a784be701_2"
-          ],
-          "meta_doc_ids": [
-            "30fc609b-a797-4a67-b601-9e1a784be701_1",
-            "30fc609b-a797-4a67-b601-9e1a784be701_2"
-          ]
-        };
+        const allowedIdsObj = JSON.parse(raw || "{}");
         
 
         const allowedIds = [
@@ -328,7 +290,7 @@ export async function createElasticsearchMcpServer(
       const allowedMetaDocIds = allowedIdsObj.meta_doc_ids;
       permissionFilter = {
         bool: {
-          should: allowedMetaDocIds.map(id => ({
+          should: allowedMetaDocIds.map((id: string) => ({
             terms: {
               "AGREEMENT_ID.keyword": {
                 index: "permitted_agreement_for_meta",
@@ -344,7 +306,7 @@ export async function createElasticsearchMcpServer(
       const allowedAttachmentDocIds = allowedIdsObj.attachment_doc_ids;
       permissionFilter = {
         bool: {
-          should: allowedAttachmentDocIds.map(id => ({
+          should: allowedAttachmentDocIds.map((id: string) => ({
             terms: {
               "AGREEMENT_ID.keyword": {
                 index: "permitted_agreement_for_attachment",
@@ -359,7 +321,7 @@ export async function createElasticsearchMcpServer(
       const sectionDocIds = allowedIdsObj.line_item_section_doc_ids; // Array of doc IDs
       permissionFilter = {
         bool: {
-          should: sectionDocIds.map(docId => ({
+          should: sectionDocIds.map((docId: string)=> ({
             bool: {
               must: [
                 {
@@ -390,7 +352,7 @@ export async function createElasticsearchMcpServer(
       const sectionDocIds = allowedIdsObj.header_section_doc_ids; // array of doc IDs
       permissionFilter = {
         bool: {
-          should: sectionDocIds.map(docId => ({
+          should: sectionDocIds.map((docId: string) => ({
             bool: {
               must: [
                 {
@@ -420,7 +382,7 @@ export async function createElasticsearchMcpServer(
       const clauseDocIds = allowedIdsObj.header_clause_doc_ids; 
       permissionFilter = {
         bool: {
-          should: clauseDocIds.map(docId => ({
+          should: clauseDocIds.map((docId: string) => ({
             terms: {
               "AGREEMENT_ID.keyword": {
                 index: "permitted_agreement_for_clause",
